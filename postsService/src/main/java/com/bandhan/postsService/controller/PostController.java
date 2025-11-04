@@ -1,16 +1,19 @@
 package com.bandhan.postsService.controller;
 
 
+import com.bandhan.postsService.auth.AuthContextHolder;
 import com.bandhan.postsService.dto.PostCreateRequestDto;
 import com.bandhan.postsService.dto.PostDto;
 import com.bandhan.postsService.services.PostServices;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/core")
@@ -27,6 +30,7 @@ public class PostController {
 
     @GetMapping("/{id}")
     public ResponseEntity<PostDto> getPost(@PathVariable Long id) {
+
         PostDto postDto = postServices.getPostById(id);
         return ResponseEntity.ok(postDto);
     }
