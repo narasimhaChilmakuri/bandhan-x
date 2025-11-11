@@ -23,6 +23,9 @@ public class ConnectionsController {
     {
         log.info("Received request to get first degree connections for userId: {}", userId);
         List<Person> personList = connectionsService.getFirstDegreeConnectionsOfUser(userId);
+
+        log.info("First degree connections for userId {}: {}", userId, personList);
+
         return ResponseEntity.ok(personList);
     }
 

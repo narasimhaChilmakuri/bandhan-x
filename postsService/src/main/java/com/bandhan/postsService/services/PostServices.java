@@ -7,12 +7,14 @@ import com.bandhan.postsService.dto.PersonDto;
 import com.bandhan.postsService.dto.PostCreateRequestDto;
 import com.bandhan.postsService.dto.PostDto;
 import com.bandhan.postsService.entity.Post;
+import com.bandhan.postsService.events.PostCreated;
 import com.bandhan.postsService.exception.ResourceNotFoundException;
 import com.bandhan.postsService.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,6 +31,8 @@ public class PostServices {
     @Autowired
     private ConnectionsServiceClient connectionsServiceClient;
 
+    private KafkaTemplate<Long, PostCreated> postCreatedKafkaTemplate;
+
 
     public PostDto createPost(PostCreateRequestDto postCreateRequestDto,Long UserId) {
         log.info("Creating a new post for user with ID: {}", UserId);
@@ -36,15 +40,31 @@ public class PostServices {
         post.setCreatedAt(LocalDateTime.now());
         post.setUserId(UserId);
         postRepository.save(post);
+
+        //get all connections of current user
+        List<PersonDto> personDto = connectionsServiceClient.getFirstDegreeConnections(AuthContextHolder.getCurrentUserId());
+
+
+
+        for(PersonDto person : personDto){
+            PostCreated postCreated = new PostCreated();
+            postCreated.setPostId(post.getId());
+            postCreated.setOwnerUserId(post.getUserId());
+            postCreated.setContent(post.getContent());
+            postCreated.setUserId(person.getId());
+            postCreatedKafkaTemplate.send("post-created-topic",postCreated);
+        }
+
+
+        //send notification to all connections
+
         return modelMapper.map(post, PostDto.class);
     }
 
     public PostDto getPostById(Long id) {
         log.info("Fetching post with ID: {}", id);
 
-        Long userId = AuthContextHolder.getCurrentUserId();
 
-        List<PersonDto> personDtoList = connectionsServiceClient.getFirstDegreeConnections(userId);
 
         Post post = postRepository.findById(id).orElseThrow(()
                 -> new ResourceNotFoundException("Post not found with ID: " + id));
