@@ -1,4 +1,4 @@
-package com.bandhan.notificationService.events;
+package com.bandhan.postsService.events;
 
 import lombok.Data;
 

@@ -1,10 +1,9 @@
-package com.bandhan.notificationService.events;
+package com.bandhan.postsService.events;
 
 import lombok.Builder;
 import lombok.Data;
 
 @Data
-@Builder
 public class PostLiked {
 
     private Long postId;

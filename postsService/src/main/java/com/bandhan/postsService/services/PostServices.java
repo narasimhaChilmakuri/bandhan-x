@@ -28,10 +28,8 @@ public class PostServices {
     private final PostRepository postRepository;
     private final ModelMapper modelMapper;
 
-    @Autowired
-    private ConnectionsServiceClient connectionsServiceClient;
-
-    private KafkaTemplate<Long, PostCreated> postCreatedKafkaTemplate;
+    private final ConnectionsServiceClient connectionsServiceClient;
+    private final KafkaTemplate<Long, PostCreated> postCreatedKafkaTemplate;
 
 
     public PostDto createPost(PostCreateRequestDto postCreateRequestDto,Long UserId) {
@@ -39,24 +37,40 @@ public class PostServices {
         Post post = modelMapper.map(postCreateRequestDto, Post.class);
         post.setCreatedAt(LocalDateTime.now());
         post.setUserId(UserId);
-        postRepository.save(post);
+
 
         //get all connections of current user
-        List<PersonDto> personDto = connectionsServiceClient.getFirstDegreeConnections(AuthContextHolder.getCurrentUserId());
+        List<PersonDto> personDtoList = List.of();
+        try{
+            personDtoList = connectionsServiceClient.getFirstDegreeConnections(UserId);
+            if(personDtoList == null){
+                personDtoList = List.of();
+            }
+            else{
+                log.info("Fetched {} connections for userId {}", personDtoList.size(), UserId);
+            }
+        }
+        catch (Exception e){
+            log.warn("Could not fetch connections for userId {}: {} - proceeding without connections", UserId, e.getMessage());
+        }
 
 
 
-        for(PersonDto person : personDto){
+
+        for(PersonDto person : personDtoList){
             PostCreated postCreated = new PostCreated();
             postCreated.setPostId(post.getId());
             postCreated.setOwnerUserId(post.getUserId());
             postCreated.setContent(post.getContent());
             postCreated.setUserId(person.getId());
-            postCreatedKafkaTemplate.send("post-created-topic",postCreated);
+            postCreatedKafkaTemplate.send("post_created_topic",postCreated);
         }
 
 
         //send notification to all connections
+
+
+        postRepository.save(post);
 
         return modelMapper.map(post, PostDto.class);
     }

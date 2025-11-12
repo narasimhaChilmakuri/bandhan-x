@@ -43,7 +43,7 @@ public class PostLikesService {
         postLike.setUserId(userId);
         postLike.setPostId(postId);
         postLike.setCreatedAt(LocalDateTime.now());
-        postLikesRepository.save(postLike);
+
 
         PostLiked postLiked = PostLiked.builder()
                 .postId(postId)
@@ -51,7 +51,9 @@ public class PostLikesService {
                 .ownerUserId(post.getUserId())
                 .build();
 
-        postLikedKafkaTemplate.send("post-liked-topic", postLiked);
+        postLikesRepository.save(postLike);
+
+        postLikedKafkaTemplate.send("post_liked_topic", postLiked);
     }
 
     @Transactional
