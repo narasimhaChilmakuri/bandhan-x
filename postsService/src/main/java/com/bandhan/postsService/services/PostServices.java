@@ -3,6 +3,7 @@ package com.bandhan.postsService.services;
 
 import com.bandhan.postsService.auth.AuthContextHolder;
 import com.bandhan.postsService.client.ConnectionsServiceClient;
+import com.bandhan.postsService.client.UploaderServiceClient;
 import com.bandhan.postsService.dto.PersonDto;
 import com.bandhan.postsService.dto.PostCreateRequestDto;
 import com.bandhan.postsService.dto.PostDto;
@@ -14,8 +15,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,51 +30,40 @@ public class PostServices {
 
     private final PostRepository postRepository;
     private final ModelMapper modelMapper;
-
     private final ConnectionsServiceClient connectionsServiceClient;
     private final KafkaTemplate<Long, PostCreated> postCreatedKafkaTemplate;
+    private final UploaderServiceClient uploaderServiceClient;
+
+    public PostDto createPost(PostCreateRequestDto postCreateRequestDto, MultipartFile file) {
+        Long userId = AuthContextHolder.getCurrentUserId();
+        log.info("Creating a new post for user with ID: {}", userId);
+
+        ResponseEntity<String> imageUrl = uploaderServiceClient.uploadFile(file);
 
 
-    public PostDto createPost(PostCreateRequestDto postCreateRequestDto,Long UserId) {
-        log.info("Creating a new post for user with ID: {}", UserId);
         Post post = modelMapper.map(postCreateRequestDto, Post.class);
+        post.setUserId(userId);
+        post.setImageUrl(imageUrl.getBody());
         post.setCreatedAt(LocalDateTime.now());
-        post.setUserId(UserId);
+        postRepository.save(post);
 
 
         //get all connections of current user
-        List<PersonDto> personDtoList = List.of();
-        try{
-            personDtoList = connectionsServiceClient.getFirstDegreeConnections(UserId);
-            if(personDtoList == null){
-                personDtoList = List.of();
-            }
-            else{
-                log.info("Fetched {} connections for userId {}", personDtoList.size(), UserId);
-            }
-        }
-        catch (Exception e){
-            log.warn("Could not fetch connections for userId {}: {} - proceeding without connections", UserId, e.getMessage());
-        }
-
-
-
+        List<PersonDto> personDtoList = connectionsServiceClient.getFirstDegreeConnections(userId);
 
         for(PersonDto person : personDtoList){
-            PostCreated postCreated = new PostCreated();
-            postCreated.setPostId(post.getId());
-            postCreated.setOwnerUserId(post.getUserId());
-            postCreated.setContent(post.getContent());
-            postCreated.setUserId(person.getId());
+            PostCreated postCreated = PostCreated.builder().
+                    postId(post.getId()).
+                    content(post.getContent()).
+                    userId(person.getId()).
+                    ownerUserId(post.getUserId()).
+                    build();
+
             postCreatedKafkaTemplate.send("post_created_topic",postCreated);
         }
 
 
         //send notification to all connections
-
-
-        postRepository.save(post);
-
         return modelMapper.map(post, PostDto.class);
     }
 
