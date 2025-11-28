@@ -1,13 +1,16 @@
 package com.bandhan.postsService.services;
 
+import com.bandhan.postsService.auth.AuthContextHolder;
 import com.bandhan.postsService.entity.Post;
 import com.bandhan.postsService.entity.PostLike;
+import com.bandhan.postsService.events.PostLiked;
 import com.bandhan.postsService.exception.BadRequestException;
 import com.bandhan.postsService.exception.ResourceNotFoundException;
 import com.bandhan.postsService.repository.PostLikesRepository;
 import com.bandhan.postsService.repository.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +24,12 @@ public class PostLikesService {
     private final PostLikesRepository postLikesRepository;
     private final PostRepository postRepository;
 
+    private final KafkaTemplate<Long, PostLiked> postLikedKafkaTemplate;
+
 
     @Transactional
     public void likePost(Long postId) {
-        Long userId = 1L; // Replace with actual user ID retrieval logic
+        Long userId = AuthContextHolder.getCurrentUserId();
         log.info("User with ID: {} Liking post with Post ID: {}", userId,postId);
         Post post = postRepository.findById(postId).orElseThrow(()
                 -> new ResourceNotFoundException("Post not found with ID: " + postId));
@@ -38,12 +43,22 @@ public class PostLikesService {
         postLike.setUserId(userId);
         postLike.setPostId(postId);
         postLike.setCreatedAt(LocalDateTime.now());
+
+
+        PostLiked postLiked = PostLiked.builder()
+                .postId(postId)
+                .likedByUserId(userId)
+                .ownerUserId(post.getUserId())
+                .build();
+
         postLikesRepository.save(postLike);
+
+        postLikedKafkaTemplate.send("post_liked_topic", postLiked);
     }
 
     @Transactional
     public void unlikePost(Long postId) {
-        Long userId = 1L; // Replace with actual user ID retrieval logic
+        Long userId = AuthContextHolder.getCurrentUserId();
         log.info("User with ID: {} Unliking post with Post ID: {}", userId,postId);
         postRepository.findById(postId).orElseThrow(()
                 -> new ResourceNotFoundException("Post not found with ID: " + postId));
