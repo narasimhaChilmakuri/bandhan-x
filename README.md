@@ -1,3 +1,10 @@
+
+## 🏗️ High-Level Architecture
+
+
+
+<img width="6788" height="2828" alt="Linked_In_Microserivce_Components_56249736c8" src="https://github.com/user-attachments/assets/b52ed03c-efe3-4abc-912f-731ae11911d9" />
+
 **🌐 Bandhan: High-Scale Professional Networking Platform**
 
 
@@ -41,9 +48,4 @@ Scale: Built to handle high-concurrency write/read patterns typical of social pl
 Observability: 100% traceability of user actions across the microservice ecosystem.
 
 
-## 🏗️ High-Level Architecture
-
-
-
-<img width="6788" height="2828" alt="Linked_In_Microserivce_Components_56249736c8" src="https://github.com/user-attachments/assets/b52ed03c-efe3-4abc-912f-731ae11911d9" />
 
