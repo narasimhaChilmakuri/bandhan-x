@@ -1,51 +1,93 @@
 
-## 🏗️ High-Level Architecture
-
-
-
-<img width="6788" height="2828" alt="Linked_In_Microserivce_Components_56249736c8" src="https://github.com/user-attachments/assets/b52ed03c-efe3-4abc-912f-731ae11911d9" />
+# Bandhan
 
 **🌐 Bandhan: High-Scale Professional Networking Platform**
+High-scale professional networking backend built with a microservices architecture.
 
+> Tech: Spring Boot + Spring Cloud, Kafka, Redis, PostgreSQL, Neo4j, ELK, Zipkin, Docker/Kubernetes.
 
-Bandhan is a distributed microservice backend designed to handle 10M+ users and 1B+ interactions. It focuses on solving the engineering challenges of real-time feeds, complex connection mapping, and system observability.
+## Architecture
 
-🏗️ Architecture & Tech Stack
-Microservices: Spring Boot, Spring Cloud (Feign, Config, Eureka).
+![High-Level Architecture](https://github.com/user-attachments/assets/b52ed03c-efe3-4abc-912f-731ae11911d9)
 
-Data: Neo4j (Graph connections), PostgreSQL (Profiles), Redis (Feed Caching).
+### Core components
+- **API Gateway**: JWT auth + request routing
+- **Service discovery/config**: Eureka + Config
+- **Event streaming**: Kafka (async notifications, feed processing)
+- **Datastores**
+  - **PostgreSQL**: profiles / relational data
+  - **Neo4j**: connection graph + recommendations
+  - **Redis**: feed caching
+- **Observability**: ELK (logs) + Zipkin (tracing)
 
-Event-Driven: Apache Kafka for asynchronous notifications and feed processing.
+## Prerequisites
 
-Infrastructure: Kubernetes (Helm) for orchestration and Docker containerization.
+Install:
+- **Java 17+** (or the version required by the repo)
+- **Maven 3.8+** (or Gradle, depending on the project)
+- **Docker + Docker Compose**
+- (Optional) **kubectl + Helm** for Kubernetes deployment
 
-Observability: ELK Stack (Logging) and Zipkin (Distributed Tracing).
+## Quick start (local)
 
-🚀 Key Technical Implementations
-1. Scalable Feed Generation
-Implemented a Fan-out strategy using Kafka Streams. Post events are processed in real-time and pushed to Redis clusters, reducing feed retrieval latency by 65%.
+1) **Clone**
+```bash
+git clone https://github.com/discreteBody/bandhan-x.git
+cd bandhan-x
+```
 
-2. Graph-Based Networking
-Migrated connection logic from SQL to Neo4j. This allows for millisecond-latency queries for 2nd and 3rd-degree recommendations and complex relationship traversals that are inefficient in relational databases.
+2) **Start dependencies (recommended via Docker)**
+> Start Kafka, Redis, Postgres, Neo4j, Zipkin (and Elasticsearch/Kibana if included).
+```bash
+docker compose up -d
+```
 
-3. Enterprise Observability
-Integrated Zipkin for request tracing across services and the ELK Stack for centralized log auditing. This setup ensures content moderation and rapid debugging in a distributed environment.
+3) **Configure environment**
+Create an `.env` (or configure `application.yml`) with your local URLs/credentials. Typical values:
 
-🧠 System Highlights
-API Gateway: Centralized JWT authentication and request routing.
+- `SPRING_PROFILES_ACTIVE=local`
+- `POSTGRES_URL=jdbc:postgresql://localhost:5432/<db>`
+- `POSTGRES_USER=<user>`
+- `POSTGRES_PASSWORD=<pass>`
+- `NEO4J_URI=bolt://localhost:7687`
+- `NEO4J_USER=<user>`
+- `NEO4J_PASSWORD=<pass>`
+- `REDIS_HOST=localhost`
+- `REDIS_PORT=6379`
+- `KAFKA_BOOTSTRAP_SERVERS=localhost:9092`
+- `ZIPKIN_ENDPOINT=http://localhost:9411/api/v2/spans`
 
-Inter-Service Comm: Used Feign Clients for clean, declarative REST calls.
+4) **Build**
+```bash
+mvn clean install
+```
 
-Resilience: Designed for fault tolerance using circuit breakers and Kafka-based event persistence.
+5) **Run services**
+Run each microservice from its module directory, e.g.:
+```bash
+mvn spring-boot:run
+```
 
-CI/CD: Automated deployment pipelines using Jenkins and GitHub Actions.
+## Usage
 
-📈 Impact
-Performance: Optimized networking graphs for efficient connection discovery.
+- Gateway will expose the public API (base URL depends on your gateway config).
+- For protected endpoints, obtain a JWT (based on your auth service setup) and pass:
+```http
+Authorization: Bearer <token>
+```
 
-Scale: Built to handle high-concurrency write/read patterns typical of social platforms.
+## Observability
 
-Observability: 100% traceability of user actions across the microservice ecosystem.
+- **Zipkin**: http://localhost:9411
+- **Logs**: via ELK stack (URLs depend on your compose/k8s setup)
 
+## Development notes
 
+- Inter-service calls use **Feign**.
+- Feed generation uses a **fan-out strategy** via Kafka Streams and caches results in Redis.
 
+## Troubleshooting
+
+- If services fail to register/discover each other, verify **Eureka** URL and service ports.
+- If consumers can’t read events, verify `KAFKA_BOOTSTRAP_SERVERS` and topic creation.
+- If auth fails, ensure JWT secrets/issuer configs match across gateway + auth services.
